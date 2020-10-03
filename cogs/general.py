@@ -1,6 +1,5 @@
-import discord
 from discord.ext import commands
-import json
+
 from main import client as bot
 
 
