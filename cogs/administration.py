@@ -1,6 +1,20 @@
 import discord
+import mysql.connector
 from discord.ext import commands
 import json
+from main import client as bot
+
+
+# Optimize this import statement, maybe put db in its own file???
+with open('credentials.json', 'r') as file:
+    credentials = json.load(file)
+
+db = mysql.connector.connect(
+    host=credentials['database']['host'],
+    user=credentials['database']['user'],
+    passwd=credentials['database']['password'],
+    database=credentials['database']['database']
+)
 
 
 async def is_it_me(ctx):
@@ -91,13 +105,13 @@ class Administration(commands.Cog):
     @commands.command(name="Setprefix", help="Changes the prefix for the server")
     @commands.has_permissions(manage_guild=True)
     async def setprefix(self, ctx, prefix):
-        with open('./prefixes.json', 'r') as file:
-            prefixes = json.load(file)
-
-        prefixes[str(ctx.guild.id)] = prefix
-
-        with open('./prefixes.json', 'w') as file:
-            json.dump(prefixes, file, indent=4)
+        try:
+            cursor = db.cursor()
+            cursor.execute(f'UPDATE Guilds SET Prefix = "{prefix}" WHERE Guild_ID = {ctx.guild.id}')
+            db.commit()
+            bot.command_prefix = prefix
+        except mysql.connector.Error as err:
+            print("Something went wrong: {}".format(err))
 
         await ctx.message.add_reaction('✅')
 

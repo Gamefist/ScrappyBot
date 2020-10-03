@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import json
+from main import client as bot
 
 
 class General(commands.Cog):
@@ -14,10 +15,7 @@ class General(commands.Cog):
 
     @commands.command(name="Getprefix", help="Gets the current prefix for the server")
     async def getprefix(self, ctx):
-        with open('./prefixes.json', 'r') as file:
-            prefixes = json.load(file)
-
-        await ctx.send(f'Get current prefix is: {prefixes[str(ctx.message.guild.id)]}')
+        await ctx.send(f'The current prefix is: {await bot.get_prefix(ctx.message)}')
 
     @commands.command(name="Ping", help="Pong!")
     async def ping(self, ctx):

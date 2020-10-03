@@ -3,15 +3,30 @@ from discord.ext import commands, tasks
 import os
 from itertools import cycle
 import json
+import mysql.connector
 
 token = open("token", "r").read()
 
+# Optimize this import statement, maybe put db in its own file???
+with open('credentials.json', 'r') as file:
+    credentials = json.load(file)
+
+db = mysql.connector.connect(
+    host=credentials['database']['host'],
+    user=credentials['database']['user'],
+    passwd=credentials['database']['password'],
+    database=credentials['database']['database']
+)
+
 
 def get_prefix(client, message):
-    with open('./prefixes.json', 'r') as file:
-        prefixes = json.load(file)
-
-    return prefixes[str(message.guild.id)]
+    try:
+        cursor = db.cursor()
+        cursor.execute(f'SELECT Prefix FROM Guilds WHERE Guild_ID = {message.guild.id}')
+        row = cursor.fetchone()
+    except mysql.connector.Error as err:
+        print("Something went wrong: {}".format(err))
+    return row[0]
 
 
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True, description="ScrappyBot")
@@ -32,24 +47,22 @@ async def on_command_error(ctx, error):
 
 @client.event
 async def on_guild_join(guild):
-    with open('./prefixes.json', 'r') as file:
-        prefixes = json.load(file)
-
-    prefixes[str(guild.id)] = '!'
-
-    with open('./prefixes.json', 'w') as file:
-        json.dump(prefixes, file, indent=4)
+    try:
+        cursor = db.cursor()
+        cursor.execute(f'INSERT INTO Guilds (Guild_ID, Prefix) VALUES(%s, %s)', (guild.id, "!"))
+        db.commit()
+    except mysql.connector.Error as err:
+        print("Something went wrong: {}".format(err))
 
 
 @client.event
 async def on_guild_remove(guild):
-    with open('./prefixes.json', 'r') as file:
-        prefixes = json.load(file)
-
-    prefixes.pop(str(guild.id))
-
-    with open('./prefixes.json', 'w') as file:
-        json.dump(prefixes, file, indent=4)
+    try:
+        cursor = db.cursor()
+        cursor.execute(f'DELETE FROM Guilds WHERE Guild_ID = {guild.id}')
+        db.commit()
+    except mysql.connector.Error as err:
+        print("Something went wrong: {}".format(err))
 
 
 @client.event
