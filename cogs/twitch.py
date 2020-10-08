@@ -12,7 +12,7 @@ class Twitch(commands.Cog):
     async def on_ready(self):
         print(f'Twitch Cog Loaded Successfully!')
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(invoke_without_command=True, help="Get information about a twitch channel")
     async def twitch(self, ctx, channel):
         async with ctx.channel.typing():
             async with aiohttp.ClientSession() as session:
