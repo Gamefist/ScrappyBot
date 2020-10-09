@@ -112,7 +112,7 @@ class Administration(commands.Cog):
 
     @commands.command(name="Kill", help="Kill the bot")
     @commands.is_owner()
-    async def kill(self, ctx, prefix):
+    async def kill(self, ctx):
         await ctx.message.add_reaction('✅')
         await bot.get_channel(logChannel).send(f'🤖 | {bot.user.display_name} is logging out...')
         bot.logout()
