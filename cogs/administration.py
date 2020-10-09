@@ -115,7 +115,7 @@ class Administration(commands.Cog):
     async def kill(self, ctx):
         await ctx.message.add_reaction('✅')
         await bot.get_channel(logChannel).send(f'🤖 | {bot.user.display_name} is logging out...')
-        bot.logout()
+        await bot.logout()
 
 
 def setup(client):
