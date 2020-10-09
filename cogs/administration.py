@@ -3,7 +3,9 @@ import mysql.connector
 from discord.ext import commands
 import json
 from main import client as bot
+import os
 
+logChannel = 753963587898310716
 
 # Optimize this import statement, maybe put db in its own file???
 with open('credentials.json', 'r') as file:

@@ -6,6 +6,7 @@ import json
 import mysql.connector
 
 token = open("token", "r").read()
+logChannel = 753963587898310716
 
 # Optimize this import statement, maybe put db in its own file???
 with open('credentials.json', 'r') as file:
@@ -71,6 +72,7 @@ async def on_ready():
     client.help_command.cog = client.get_cog('General')
     change_status.start()
     print('ScrappyBot is online!')
+    await client.get_channel(logChannel).send(f'🤖 | {client.user.display_name} is now online!')
 
 
 @tasks.loop(minutes=5)
