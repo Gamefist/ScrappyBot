@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 import random
 
+
 class Fun(commands.Cog):
 
     def __init__(self, client):

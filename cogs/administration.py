@@ -3,20 +3,9 @@ import mysql.connector
 from discord.ext import commands
 import json
 from main import client as bot
-import os
+from database import db
 
 logChannel = 753963587898310716
-
-# Optimize this import statement, maybe put db in its own file???
-with open('credentials.json', 'r') as file:
-    credentials = json.load(file)
-
-db = mysql.connector.connect(
-    host=credentials['database']['host'],
-    user=credentials['database']['user'],
-    passwd=credentials['database']['password'],
-    database=credentials['database']['database']
-)
 
 
 async def is_it_me(ctx):

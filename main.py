@@ -2,22 +2,11 @@ import discord
 from discord.ext import commands, tasks
 import os
 from itertools import cycle
-import json
 import mysql.connector
+from database import db
 
 token = open("token", "r").read()
 logChannel = 753963587898310716
-
-# Optimize this import statement, maybe put db in its own file???
-with open('credentials.json', 'r') as file:
-    credentials = json.load(file)
-
-db = mysql.connector.connect(
-    host=credentials['database']['host'],
-    user=credentials['database']['user'],
-    passwd=credentials['database']['password'],
-    database=credentials['database']['database']
-)
 
 
 def get_prefix(client, message):
@@ -25,9 +14,9 @@ def get_prefix(client, message):
         cursor = db.cursor()
         cursor.execute(f'SELECT Prefix FROM Guilds WHERE Guild_ID = {message.guild.id}')
         row = cursor.fetchone()
+        return row[0]
     except mysql.connector.Error as err:
         print("Something went wrong: {}".format(err))
-    return row[0]
 
 
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True, description="ScrappyBot")
