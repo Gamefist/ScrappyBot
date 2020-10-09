@@ -1,7 +1,6 @@
 import discord
 import mysql.connector
 from discord.ext import commands
-import json
 from main import client as bot
 from database import db
 
@@ -110,6 +109,13 @@ class Administration(commands.Cog):
     async def setprefix_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f'{ctx.message.author.mention} Please specify the new prefix you wish to set for the server')
+
+    @commands.command(name="Kill", help="Kill the bot")
+    @commands.is_owner()
+    async def kill(self, ctx, prefix):
+        await ctx.message.add_reaction('✅')
+        await bot.get_channel(logChannel).send(f'🤖 | {bot.user.display_name} is logging out...')
+        bot.logout()
 
 
 def setup(client):
