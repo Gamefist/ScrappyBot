@@ -1,7 +1,14 @@
+from itertools import islice
+
 import discord
 from discord.ext import commands
 import aiohttp
+import mysql.connector
+from main import twitch, twitch_client
+
 from main import client as bot
+from database import db
+
 
 class Twitch(commands.Cog):
 
@@ -12,7 +19,7 @@ class Twitch(commands.Cog):
     async def on_ready(self):
         print(f'Twitch Cog Loaded Successfully!')
 
-    @commands.group(invoke_without_command=True,  name='Twitch', help="Get information about a twitch channel")
+    @commands.group(invoke_without_command=True, name='Twitch', help="Get information about a twitch channel")
     async def twitch(self, ctx, channel):
         async with ctx.channel.typing():
             async with aiohttp.ClientSession() as session:
@@ -381,6 +388,131 @@ class Twitch(commands.Cog):
     async def viewercount_error(self, ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(f'{ctx.message.author.mention} Please specify the channel to get the viewercount from.')
+
+    @twitch.group(invoke_without_command=True, name="Channel",
+                  help="Set or change the announcement channel used for twitch announcements",
+                  aliases=['channel'])
+    @commands.has_permissions(manage_guild=True)
+    async def channel(self, ctx):
+        cursor = db.cursor()
+        cursor.execute(f'SELECT announcement_channel FROM Guilds WHERE Guild_ID = "{ctx.guild.id}"')
+        row = cursor.fetchone()
+        if row[0]:
+            channel = bot.get_channel(int(row[0]))
+            embed = discord.Embed(description=f'The current announcement channel is: {channel.mention}\n '
+                                              f'If you wish to change this please use the following command:'
+                                              f'```{await bot.get_prefix(ctx.message)}twitch channel set <channel>```')
+            await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title=f'The twitch announcement channel has not yet been set',
+                                  description=f'If you wish to change this please use the following command:'
+                                              f'```{await bot.get_prefix(ctx.message)}twitch channel set <channel>```')
+            await ctx.send(embed=embed)
+
+    @channel.command(name="Set",
+                     help="Set or change the announcement channel used for twitch announcements",
+                     aliases=['set', 'set_channel'])
+    @commands.has_permissions(manage_guild=True)
+    async def set_channel(self, ctx, channel: discord.TextChannel):
+        try:
+            cursor = db.cursor()
+            cursor.execute(f'UPDATE Guilds SET announcement_channel = "{channel.id}" WHERE Guild_ID = {ctx.guild.id}')
+            db.commit()
+            embed = discord.Embed(description=f'Twitch announcements will now be placed in: {channel.mention}')
+            await ctx.send(embed=embed)
+        except mysql.connector.Error as err:
+            print("Something went wrong: {}".format(err))
+
+    @set_channel.error
+    async def set_channel_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(f'{ctx.message.author.mention} Please specify a channel')
+
+    @twitch.group(invoke_without_command=True, name="Announce",
+                  help="Add or remove a twitch channel to get announcements from",
+                  aliases=['announce'])
+    @commands.has_permissions(manage_guild=True)
+    async def announce(self, ctx):
+        cursor = db.cursor()
+        cursor.execute(f'SELECT announcement_channel FROM Guilds WHERE Guild_ID = "{ctx.guild.id}"')
+        row = cursor.fetchone()
+        if row[0]:
+            announcement_channel = row[0]
+            cursor.execute(f'SELECT channel_id FROM Twitch WHERE announcement_channel = "{announcement_channel}"')
+            row = cursor.fetchall()
+            channels = ''
+            for channel in row:
+                channels += f'{channel[0]} \n'
+            embed = discord.Embed(title=f'Current twitch announcements for this guild:', description=channels)
+            await ctx.send(embed=embed)
+
+        else:
+            embed = discord.Embed(title=f'The twitch announcement channel has not yet been set',
+                                  description=f'If you wish to change this please use the following command:'
+                                              f'```{await bot.get_prefix(ctx.message)}twitch channel set <channel>```')
+            await ctx.send(embed=embed)
+
+    @announce.command(name="Add",
+                      help="Add a twitch channel to get announcements from",
+                      aliases=['add'])
+    @commands.has_permissions(manage_guild=True)
+    async def add_channel(self, ctx, channel_id: int):
+        cursor = db.cursor()
+        cursor.execute(f'SELECT announcement_channel FROM Guilds WHERE Guild_ID = "{ctx.guild.id}"')
+        row = cursor.fetchone()
+        announcement_channel = row[0]
+        if row[0]:
+            channel = twitch_client.channels.get_by_id(channel_id)
+            if channel:
+                sql = "INSERT INTO Twitch (channel_id, announcement_channel, online) VALUES (%s, %s, %s)"
+                val = (channel.id, announcement_channel, 0)
+                cursor.execute(sql, val)
+                db.commit()
+                embed = discord.Embed(description=f'Twitch channel: {channel.name} has been added to the announcements')
+                await ctx.send(embed=embed)
+            else:
+                embed = discord.Embed(description=f'No channel found wit this channel_id')
+                await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title=f'The twitch announcement channel has not yet been set',
+                                  description=f'If you wish to change this please use the following command:'
+                                              f'```{await bot.get_prefix(ctx.message)}twitch channel set <channel>```')
+            await ctx.send(embed=embed)
+
+    @add_channel.error
+    async def add_channel_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(f'{ctx.message.author.mention} Please specify a twitch user_id')
+
+    @announce.command(name="Remove",
+                      help="Remove a twitch channel to get announcements from",
+                      aliases=['remove'])
+    @commands.has_permissions(manage_guild=True)
+    async def remove_channel(self, ctx, channel_id: int):
+        cursor = db.cursor()
+        cursor.execute(f'SELECT announcement_channel FROM Guilds WHERE Guild_ID = "{ctx.guild.id}"')
+        row = cursor.fetchone()
+        if row[0]:
+            channel = twitch_client.channels.get_by_id(channel_id)
+            if channel:
+                sql = f'DELETE FROM Twitch WHERE channel_id = "{channel.id}"'
+                cursor.execute(sql)
+                db.commit()
+                embed = discord.Embed(description=f'Twitch channel: {channel.name} has been removed from announcements')
+                await ctx.send(embed=embed)
+            else:
+                embed = discord.Embed(description=f'No channel found wit this channel_id')
+                await ctx.send(embed=embed)
+        else:
+            embed = discord.Embed(title=f'The twitch announcement channel has not yet been set',
+                                  description=f'If you wish to change this please use the following command:'
+                                              f'```{await bot.get_prefix(ctx.message)}twitch channel set <channel>```')
+            await ctx.send(embed=embed)
+
+    @remove_channel.error
+    async def remove_channel_error(self, ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(f'{ctx.message.author.mention} Please specify a twitch user_id')
 
 
 def setup(client):
